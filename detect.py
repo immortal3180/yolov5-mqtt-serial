@@ -374,6 +374,18 @@ def run(
             # Stream results
             im0 = annotator.result()
             if view_img:
+                # 计算并显示 FPS
+                fps_frame_count += 1
+                elapsed_time = time.time() - fps_start_time
+                if elapsed_time >= 1.0:  # 每秒更新一次 FPS
+                    fps_display = fps_frame_count / elapsed_time
+                    fps_frame_count = 0
+                    fps_start_time = time.time()
+                
+                # 在画面左上角绘制 FPS
+                fps_text = f"FPS: {fps_display:.1f}"
+                cv2.putText(im0, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                
                 if platform.system() == "Linux" and p not in windows:
                     windows.append(p)
                     cv2.namedWindow(str(p), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
