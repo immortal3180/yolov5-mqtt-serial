@@ -304,7 +304,7 @@ def run(
             if len(det) == 0 and ser:
                 try:
                     ser.write(b'start\n')
-                    LOGGER.info("📡 串口发送: start (未检测到目标)")
+                    LOGGER.info("串口发送: start (未检测到目标)")
                 except Exception as e:
                     LOGGER.warning(f"串口发送失败: {e}")
             
