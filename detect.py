@@ -324,7 +324,7 @@ def run(
                             detected_items[f"{idx}"] = class_name
                         
                         if detected_items:
-                            mqtt_message = json.dumps(detected_items)
+                            mqtt_message = json.dumps(detected_items, ensure_ascii=False)
                             mqtt_client.publish(message=mqtt_message)
                             LOGGER.debug(f"MQTT消息已发送: {mqtt_message}")
                     except Exception as e:
@@ -382,7 +382,8 @@ def run(
                     fps_frame_count = 0
                     fps_start_time = time.time()
                 
-                # 在画面左上角绘制 FPS
+                # 在画面左上角绘制 FPS（需要确保数组可写）
+                im0 = im0.copy()
                 fps_text = f"FPS: {fps_display:.1f}"
                 cv2.putText(im0, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 
@@ -505,7 +506,7 @@ def parse_opt():
     parser.add_argument("--dnn", action="store_true", help="use OpenCV DNN for ONNX inference")
     parser.add_argument("--vid-stride", type=int, default=1, help="video frame-rate stride")
     # Raspberry Pi / IoT features
-    parser.add_argument("--enable-mqtt", action="store_true", help="enable MQTT communication for IoT")
+    parser.add_argument("--enable-mqtt", action="store_true", default=True, help="enable MQTT communication for IoT (default: enabled)")
     parser.add_argument("--mqtt-broker", type=str, default="124.70.54.142", help="MQTT broker address")
     parser.add_argument("--mqtt-port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--mqtt-topic", type=str, default="test_A", help="MQTT topic for publishing detection results")
