@@ -234,6 +234,11 @@ def run(
     fps_start_time = time.time()
     fps_frame_count = 0
     fps_display = 0.0
+    
+    # MQTT 发送频率限制（避免每帧都发送，降低网络开销）
+    mqtt_last_send_time = 0
+    mqtt_send_interval = 0.5  # 最小发送间隔（秒）
+    mqtt_last_message = ""  # 上次发送的消息，用于去重
     for path, im, im0s, vid_cap, s in dataset:
         with dt[0]:
             im = torch.from_numpy(im).to(model.device)
@@ -325,8 +330,12 @@ def run(
                         
                         if detected_items:
                             mqtt_message = json.dumps(detected_items, ensure_ascii=False)
-                            mqtt_client.publish(message=mqtt_message)
-                            LOGGER.debug(f"MQTT消息已发送: {mqtt_message}")
+                            current_time = time.time()
+                            # 只有当消息内容变化或超过发送间隔时才发送
+                            if mqtt_message != mqtt_last_message or (current_time - mqtt_last_send_time) >= mqtt_send_interval:
+                                mqtt_client.publish(message=mqtt_message)
+                                mqtt_last_message = mqtt_message
+                                mqtt_last_send_time = current_time
                     except Exception as e:
                         LOGGER.warning(f"MQTT发送失败: {e}")
 
@@ -474,10 +483,10 @@ def parse_opt():
     parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model path or triton URL")
     parser.add_argument("--source", type=str, default=ROOT / "data/images", help="file/dir/URL/glob/screen/0(webcam)")
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="(optional) dataset.yaml path")
-    parser.add_argument("--imgsz", "--img", "--img-size", nargs="+", type=int, default=[640], help="inference size h,w")
+    parser.add_argument("--imgsz", "--img", "--img-size", nargs="+", type=int, default=[320], help="inference size h,w")
     parser.add_argument("--conf-thres", type=float, default=0.25, help="confidence threshold")
     parser.add_argument("--iou-thres", type=float, default=0.45, help="NMS IoU threshold")
-    parser.add_argument("--max-det", type=int, default=1000, help="maximum detections per image")
+    parser.add_argument("--max-det", type=int, default=100, help="maximum detections per image")
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
     parser.add_argument("--view-img", action="store_true", help="show results")
     parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
