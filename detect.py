@@ -47,8 +47,8 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
 
-from mqtt import MQTTClient
 from models.common import DetectMultiBackend
+from mqtt import MQTTClient
 from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
 from utils.general import (
     LOGGER,
@@ -177,9 +177,9 @@ def run(
     model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_img_size(imgsz, s=stride)  # check image size
-    
+
     # 树莓派优化：模型量化（可选）
-    if quantize_model and device.type == 'cpu':
+    if quantize_model and device.type == "cpu":
         try:
             LOGGER.info("正在量化模型以优化树莓派性能...")
             model.model = torch.quantization.quantize_dynamic(
@@ -188,7 +188,7 @@ def run(
             LOGGER.info("模型量化完成")
         except Exception as e:
             LOGGER.warning(f"模型量化失败: {e}，将继续使用原始模型")
-    
+
     # 初始化MQTT客户端（如果启用）
     mqtt_client = None
     if enable_mqtt:
@@ -202,16 +202,16 @@ def run(
         except Exception as e:
             LOGGER.warning(f"MQTT初始化失败: {e}，将禁用MQTT功能")
             mqtt_client = None
-    
+
     # 初始化串口通信（如果启用）
-    ser = None
+    set = None
     if enable_serial:
         try:
-            ser = serial.Serial(serial_port, serial_baud, timeout=1)
+            set = serial.Serial(serial_port, serial_baud, timeout=1)
             LOGGER.info(f"串口连接成功: {serial_port} @ {serial_baud} baud")
         except Exception as e:
             LOGGER.warning(f"串口连接失败: {e}，将禁用串口功能（如果不需要串口功能可忽略）")
-            ser = None
+            set = None
 
     # Dataloader
     bs = 1  # batch_size
@@ -288,15 +288,15 @@ def run(
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
-            
+
             # 树莓派功能：如果没有检测到目标，发送串口信号
-            if len(det) == 0 and ser:
+            if len(det) == 0 and set:
                 try:
-                    ser.write(b'start\n')
+                    set.write(b"start\n")
                     LOGGER.info("📡 串口发送: start (未检测到目标)")
                 except Exception as e:
                     LOGGER.warning(f"串口发送失败: {e}")
-            
+
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
@@ -308,15 +308,15 @@ def run(
                     class_name = names[int(c)]
                     s += f"{n} {class_name}{'s' * (n > 1)}, "  # add to string
                     detected_classes[class_name] = int(n)
-                
+
                 # 树莓派功能：发送检测到的类别信息到MQTT（仅在视频/摄像头模式下）
-                if mqtt_client and (webcam or dataset.mode == 'video'):
+                if mqtt_client and (webcam or dataset.mode == "video"):
                     try:
                         # 构建JSON消息，格式与网页前端兼容
                         detected_items = {}
                         for idx, (class_name, count) in enumerate(detected_classes.items(), 1):
                             detected_items[f"{idx}"] = class_name
-                        
+
                         if detected_items:
                             mqtt_message = json.dumps(detected_items)
                             mqtt_client.publish(message=mqtt_message)
@@ -330,16 +330,16 @@ def run(
                     label = names[c] if hide_conf else f"{names[c]}"
                     confidence = float(conf)
                     confidence_str = f"{confidence:.2f}"
-                    
+
                     # 树莓派功能：发送检测到的目标坐标到串口
-                    if ser:
+                    if set:
                         try:
                             # 计算边界框中心坐标
                             x1, y1, x2, y2 = [float(x) for x in xyxy]
                             center_x = int((x1 + x2) / 2)
                             center_y = int((y1 + y2) / 2)
                             coord_msg = f"({center_x},{center_y})\n"
-                            ser.write(coord_msg.encode('utf-8'))
+                            set.write(coord_msg.encode("utf-8"))
                             LOGGER.info(f"📡 串口发送: ({center_x},{center_y}) - 检测到 {label}")
                         except Exception as e:
                             LOGGER.warning(f"串口发送坐标失败: {e}")
@@ -492,7 +492,9 @@ def parse_opt():
     parser.add_argument("--mqtt-port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--mqtt-topic", type=str, default="test_A", help="MQTT topic for publishing detection results")
     parser.add_argument("--enable-serial", action="store_true", help="enable serial communication (Raspberry Pi)")
-    parser.add_argument("--serial-port", type=str, default="/dev/ttyAMA0", help="serial port (default for Raspberry Pi)")
+    parser.add_argument(
+        "--serial-port", type=str, default="/dev/ttyAMA0", help="serial port (default for Raspberry Pi)"
+    )
     parser.add_argument("--serial-baud", type=int, default=115200, help="serial baud rate")
     parser.add_argument("--quantize-model", action="store_true", help="quantize model for Raspberry Pi optimization")
     opt = parser.parse_args()
