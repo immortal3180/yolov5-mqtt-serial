@@ -519,7 +519,7 @@ def parse_opt():
     parser.add_argument("--mqtt-broker", type=str, default="124.70.54.142", help="MQTT broker address")
     parser.add_argument("--mqtt-port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--mqtt-topic", type=str, default="test_A", help="MQTT topic for publishing detection results")
-    parser.add_argument("--enable-serial", action="store_true", help="enable serial communication (Raspberry Pi)")
+    parser.add_argument("--enable-serial", action="store_true", default=True, help="enable serial communication (Raspberry Pi, default: enabled)")
     parser.add_argument("--serial-port", type=str, default="/dev/ttyAMA0", help="serial port (default for Raspberry Pi)")
     parser.add_argument("--serial-baud", type=int, default=115200, help="serial baud rate")
     parser.add_argument("--quantize-model", action="store_true", help="quantize model for Raspberry Pi optimization")
